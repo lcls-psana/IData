@@ -54,6 +54,40 @@ namespace {
   // checks to see if the string is a file name
   bool isFileName(const std::string& str);
 
+  // --------- begin helper functions for files() method  -------
+
+  // returns set of all values in list of pairs, for stream and run specification
+  template <class T>
+  std::set<unsigned> listOfPairsAsSet(const T &listOfPairs) {
+    std::set<unsigned> asSet;
+    for (typename T::const_iterator pairIterator = listOfPairs.begin();
+         pairIterator != listOfPairs.end(); ++pairIterator) {
+      unsigned a = pairIterator->first;
+      unsigned b = pairIterator->second;
+      for (unsigned curVal = a; curVal <= b; ++curVal) {
+        asSet.insert(curVal);
+      }
+    }
+    return asSet;
+  }
+
+  /// return regular expression for the basename of a datafile, either hdf5 or xtc.
+  /// For hdf5, match the run.
+  /// for xtc, match both the run and stream.
+  boost::regex constructDataFileRegEx(bool hdf5, bool smd, const std::string &experiment, unsigned expID) {    
+    std::string reStr;
+    if (hdf5) {
+      reStr = boost::str(boost::format("%1%-r0*(\\d+)(-.*)?[.]h5") % experiment);
+    } else if (smd) {
+      reStr = boost::str(boost::format("e%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]smd[.]xtc") % expID);
+    } else {
+      reStr = boost::str(boost::format("e%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]xtc") % expID);    
+    }
+    boost::regex re(reStr);
+    return re;
+  }
+
+  // --------- end helper functions for files() method  -------
 }
 
 //		----------------------------------------
@@ -294,7 +328,6 @@ Dataset::files() const
   if (not m_files.empty()) return m_files;
 
   bool hdf5 = this->exists("h5");
-
   bool smd = this->exists("smd");
 
   // get directory name where to look for files
@@ -306,6 +339,13 @@ Dataset::files() const
     throw DatasetDirError(ERR_LOC, dir);
   }
 
+  std::set<unsigned> runs = listOfPairsAsSet(m_runs);
+  std::set<unsigned> streams = listOfPairsAsSet(m_streams);
+
+  if (hdf5 and (streams.size()>0)) {
+    MsgLog(logger, warning, "Stream specification ignored for matching hdf5 files");
+  }
+
   // scan all files in directory, find matching ones
   std::map<unsigned, unsigned> filesPerRun;
   for (fs::directory_iterator fiter(dir); fiter != fs::directory_iterator(); ++ fiter) {
@@ -313,28 +353,27 @@ Dataset::files() const
     const fs::path& path = fiter->path();
     const fs::path& basename = path.filename();
     
-    for (IData::Dataset::Runs::const_iterator ritr = m_runs.begin(); ritr != m_runs.end(); ++ ritr) {
-      for (unsigned run = ritr->first; run <= ritr->second; ++ run) {
-        
-        // make file name regex 
-        std::string reStr;
-        if (hdf5) {
-          reStr = boost::str(boost::format("%1%-r0*%2%(-.*)?[.]h5") % experiment() % run);
-        } else if (smd) {
-          reStr = boost::str(boost::format("e%1%-r0*%2%-s[0-9]+-c[0-9]+[.]smd[.]xtc") % expID() % run);          
-        } else {
-          reStr = boost::str(boost::format("e%1%-r0*%2%-s[0-9]+-c[0-9]+[.]xtc") % expID() % run);          
-        }
-        boost::regex re(reStr);
+    boost::regex re = constructDataFileRegEx(hdf5, smd, experiment(), expID());
 
-        // name should match and we only take regular files
-        if (boost::regex_match(basename.string(), re) and fiter->status().type() == fs::regular_file) {
-          MsgLog(logger, debug, "found matching file: " << path);
+    // name should match and we only take regular files
+    if (boost::regex_match(basename.string(), re) and fiter->status().type() == fs::regular_file) {
+      boost::smatch what;
+      boost::regex_search(basename.string(), what, re);
+      unsigned run = boost::lexical_cast<unsigned>(std::string(what[1]));
+      if (runs.find(run) != runs.end()) {
+        bool streamMatch = true;
+        if ((streams.size()>0) and (not hdf5)) {
+          unsigned stream = boost::lexical_cast<unsigned>(std::string(what[2]));
+          if (streams.find(stream) == streams.end()) {
+            streamMatch = false;
+          }
+        }
+        if (streamMatch) {
+          MsgLog(logger, trace, "found matching file: " << path);
           m_files.push_back(path.string());
           ++ filesPerRun[run];
         }
       }
-      
     }
   }
 
@@ -573,7 +612,7 @@ void parseStreams(const std::string& str, IData::Dataset::Streams& streams)
       throw IData::StreamRangeSpecException(ERR_LOC, str, ex.what());
     }
     if (end < start) {
-      throw IData::StreamRangeSpecException(ERR_LOC, str, "the first number in the range must be less or equal to teh last one");
+      throw IData::StreamRangeSpecException(ERR_LOC, str, "the first number in the range must be less or equal to the last one");
     }
 
     streams.push_back(IData::Dataset::Streams::value_type(start, end));
