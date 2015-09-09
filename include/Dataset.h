@@ -201,6 +201,12 @@ public:
   /// Returns set of stream numbers
   const Streams& streams() const;
 
+  /// Returns set of run numbers
+  std::vector<unsigned> runsAsList() const;
+  
+  /// Returns set of stream numbers
+  std::vector<unsigned> streamsAsList() const;
+
   /// Returns true if dataset was specified as a single file name
   bool isFile() const { return m_isFile; }
   

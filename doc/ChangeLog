@@ -11,10 +11,17 @@ Package author: Andy Salnikov
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-14
+2015-09-09 David Schneider
+- Dataset, change new access to stream and run specification to be a list 
+  rather then a set (JIRA PSAS-186, JIRA PSAS-185)
+
 Tag: V00-01-13
 2015-09-08 David Schneider
 - Dataset::files() refactor and use stream filter to match files
-
+- provide access to stream and run specification as a set (prior was as a 
+  list of start/stops, more cumbersome for most clients of class)
+	
 Tag: V00-01-12
 2015-04-03 Christopher O'Grady
 - Remove debug print statements.

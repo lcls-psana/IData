@@ -88,6 +88,20 @@ namespace {
   }
 
   // --------- end helper functions for files() method  -------
+
+  template <class T>
+  std::vector<unsigned> listOfPairsAsVector(const T &listOfPairs) {
+    std::vector<unsigned> asVector;
+    for (typename T::const_iterator pairIterator = listOfPairs.begin();
+         pairIterator != listOfPairs.end(); ++pairIterator) {
+      unsigned a = pairIterator->first;
+      unsigned b = pairIterator->second;
+      for (unsigned curVal = a; curVal <= b; ++curVal) {
+        asVector.push_back(curVal);
+      }
+    }
+    return asVector;
+  }
 }
 
 //		----------------------------------------
@@ -300,6 +314,20 @@ Dataset::streams() const
   return m_streams;
 }
 
+/// Returns set of run numbers
+std::vector<unsigned> 
+Dataset::runsAsList() const
+{
+  return listOfPairsAsVector(m_runs);
+}
+
+/// Returns set of stream ranges
+std::vector<unsigned>
+Dataset::streamsAsList() const
+{
+  return listOfPairsAsVector(m_streams);
+}
+
 /// Return the directory name for files
 std::string 
 Dataset::dirName() const
@@ -339,8 +367,10 @@ Dataset::files() const
     throw DatasetDirError(ERR_LOC, dir);
   }
 
-  std::set<unsigned> runs = listOfPairsAsSet(m_runs);
-  std::set<unsigned> streams = listOfPairsAsSet(m_streams);
+  std::vector<unsigned> runsList = runsAsList();
+  std::vector<unsigned> streamsList = streamsAsList();
+  std::set<unsigned> runs(runsList.begin(), runsList.end());
+  std::set<unsigned> streams(streamsList.begin(), streamsList.end());
 
   if (hdf5 and (streams.size()>0)) {
     MsgLog(logger, warning, "Stream specification ignored for matching hdf5 files");
