@@ -79,9 +79,19 @@ namespace {
     if (hdf5) {
       reStr = boost::str(boost::format("%1%-r0*(\\d+)(-.*)?[.]h5") % experiment);
     } else if (smd) {
-      reStr = boost::str(boost::format("e%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]smd[.]xtc") % expID);
+        if (expID) {
+            reStr = boost::str(boost::format("e%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]smd[.]xtc") % expID);
+        } else {
+            // use the new 2020 naming with expt instead of exptnum
+            reStr = boost::str(boost::format("%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]smd[.]xtc") % experiment);
+        }
     } else {
-      reStr = boost::str(boost::format("e%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]xtc") % expID);    
+        if (expID) {
+            reStr = boost::str(boost::format("e%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]xtc") % expID);
+        } else {
+            // use the new 2020 naming with expt instead of exptnum
+            reStr = boost::str(boost::format("%1%-r0*(\\d+)-s([0-9]+)-c[0-9]+[.]xtc") % experiment);
+        }
     }
     boost::regex re(reStr);
     return re;
@@ -532,11 +542,15 @@ bool parseExpName(const std::string& exp, unsigned& expId, std::string& instrNam
       // only experiment name is given
       std::pair<std::string, unsigned> instrExp = namedb.getInstrumentAndID(exp);
       if (instrExp.first.empty()) {
-        return false;
+        if (exp.length()!=9) return false; // ugly workaround to make old tests happy
+        // looks like just the exp name (new 2020 file naming)
+        expId = 0;
+        instrName = exp.substr(0,3);
+      } else {
+        expId = instrExp.second;
+        instrName = instrExp.first;
       }
 
-      expId = instrExp.second;
-      instrName = instrExp.first;
       expName = exp;
 
     } else {
@@ -547,11 +561,15 @@ bool parseExpName(const std::string& exp, unsigned& expId, std::string& instrNam
 
       unsigned num = namedb.getID(instrument, experiment);
       if (num == 0) {
-        return false;
+        if (experiment.length()!=9) return false; // ugly workaround to make old tests happy
+        // looks like just the exp name (new 2020 file naming)
+        expId = 0;
+        instrName = exp.substr(0,3);
+      } else {
+        expId = num;
+        instrName = instrument;
       }
 
-      expId = num;
-      instrName = instrument;
       expName = experiment;
 
     }
