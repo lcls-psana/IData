@@ -542,7 +542,7 @@ bool parseExpName(const std::string& exp, unsigned& expId, std::string& instrNam
       // only experiment name is given
       std::pair<std::string, unsigned> instrExp = namedb.getInstrumentAndID(exp);
       if (instrExp.first.empty()) {
-        if (exp.length()!=9) return false; // ugly workaround to make old tests happy
+        if (exp.length()!=9 && exp.length()!=8) return false; // ugly workaround to make old tests happy
         // looks like just the exp name (new 2020 file naming)
         expId = 0;
         instrName = exp.substr(0,3);
